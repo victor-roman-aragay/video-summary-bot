@@ -8,10 +8,11 @@ Automated YouTube video summarizer bot for Telegram that monitors YouTube channe
 - 🤖 AI-powered video summarization using Google Gemini
 - 📱 Telegram bot integration for message delivery
 - 👂 Interactive mode for on-demand URL processing from multiple users
-- 📊 Database tracking and caching of processed videos
+- 📊 Database tracking and caching of processed videos (SQLite or PostgreSQL via Supabase)
 - 🔄 Smart caching - reuses existing summaries instead of regenerating
-- 🔒 User authorization - only configured users can interact with the bot
-- ⏰ Scheduled checks with configurable time windows
+- 🔒 User authorization with password-based self-registration
+- ⏰ Scheduled checks with configurable per-channel time windows
+- 🌍 Multi-user support with per-user channel subscriptions
 
 ## Project Structure
 
@@ -20,30 +21,37 @@ video-summary-bot/
 ├── src/
 │   └── video_summary_bot/
 │       ├── bots/                    # Bot implementations
-│       │   ├── combined.py         # Runs both bots in parallel
-│       │   ├── listen.py           # Interactive URL processor
-│       │   └── video_summary.py    # Scheduled channel monitor
+│       │   ├── combined.py         # Runs both scheduler + listen bot in parallel threads
+│       │   ├── listen.py           # Interactive URL processor (with password registration)
+│       │   └── video_summary.py    # One-time channel processor
 │       ├── handlers/                # External API integrations
-│       │   ├── youtube.py          # YouTube API handler
-│       │   ├── youtube_rss.py      # RSS feed handler
+│       │   ├── youtube.py          # YouTube Data API handler
+│       │   ├── youtube_rss.py      # RSS feed handler (quota-free)
 │       │   ├── gemini.py           # Gemini AI handler
 │       │   └── telegram.py         # Telegram bot handler
 │       ├── database/                # Database layer
-│       │   └── operations.py       # SQLite operations
+│       │   ├── factory.py          # DB factory (auto-selects SQLite/PostgreSQL)
+│       │   ├── operations.py       # SQLite operations
+│       │   └── postgres_operations.py  # PostgreSQL (Supabase) operations
 │       ├── config/                  # Configuration
 │       │   ├── settings.py         # API keys & settings
-│       │   └── users.py            # User preferences
+│       │   └── users.py            # Legacy user preferences (use DB instead)
 │       ├── utils/                   # Utilities
-│       │   ├── url_parser.py       # URL extraction
+│       │   ├── url_parser.py       # YouTube URL extraction
 │       │   └── logger.py           # Logging setup
-│       └── scheduler.py             # Job scheduler
+│       └── scheduler.py             # Job scheduler with per-channel time windows
 ├── data/                            # Data files
-│   └── video_summary.db            # SQLite database
+│   └── video_summary.db            # SQLite database (if not using Supabase)
 ├── scripts/                         # Utility scripts
-│   └── migrate_database.py         # Database migration
-├── notebooks/                       # Jupyter notebooks
-│   └── playground.ipynb            # Development playground
-└── tests/                          # Test suite
+│   ├── migrate_users_to_db.py      # Migrate users from config to DB
+│   ├── migrate_database.py         # General database migration
+│   ├── migrate_sqlite_to_supabase.py  # SQLite → Supabase migration
+│   └── test_supabase_connection.py
+├── tests/                          # Test suite
+├── docs/
+│   └── USER_MANAGEMENT.md          # User management guide
+└── notebooks/
+    └── playground.ipynb            # Development playground
 ```
 
 ## Installation
@@ -60,11 +68,6 @@ video-summary-bot/
    source .venv/bin/activate
    ```
 
-   Or with pip:
-   ```bash
-   pip install -e .
-   ```
-
 3. **Configure environment variables**
 
    Copy `.env.example` to `.env` and fill in your API keys:
@@ -73,10 +76,14 @@ video-summary-bot/
    ```
 
    Required variables:
-   - `YOUTUBE_API_KEY` - YouTube Data API v3 key
+   - `YOUTUBE_API_KEY` - YouTube Data API v3 key (only needed for initial channel ID lookup)
    - `GEMINI_API_KEY` - Google Gemini API key
    - `TELEGRAM_BOT_TOKEN` - Telegram bot token from @BotFather
-   - `TELEGRAM_CHAT_ID` - Your Telegram chat ID
+   - `BOT_PASSWORD` - Password for user self-registration
+
+   Database (choose one):
+   - **SQLite (development):** `USE_SUPABASE=false`
+   - **PostgreSQL/Supabase (production):** Set `USE_SUPABASE=true` and `DATABASE_URL`
 
 ## Usage
 

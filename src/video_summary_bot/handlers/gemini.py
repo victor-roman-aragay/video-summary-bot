@@ -13,7 +13,7 @@ class GeminiHandler:
     def __init__(self, api_key: str):
         """Initialize Gemini handler with API key"""
         genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel('gemini-2.5-flash')
+        self.model = genai.GenerativeModel('gemini-3.1-flash-lite-preview')
         self.logger = logging.getLogger(__name__)
     
     def summarize_video(self, transcript: str, video_title: str, channel_name: str) -> Optional[str]:

@@ -138,19 +138,22 @@ uv run python -m video_summary_bot video-summary
   - Single process, two threads running simultaneously
   - Press Ctrl+C to stop both bots
 
-- **listen** - Interactive mode that listens for YouTube URLs from configured users
-  - Accepts messages from all users defined in `config/users.py`
+- **listen** - Interactive mode that listens for YouTube URLs from authorized users
+  - Users send a YouTube URL via Telegram and get a summary back
   - Automatically checks if video has been processed before
   - If video exists in database, retrieves cached summary (no API calls)
   - If video is new, generates summary and saves to database
-  - Each user receives personalized responses
+  - **Self-registration:** Unauthorized users can register by sending the `BOT_PASSWORD`
 
 - **schedule** - Runs scheduled checks for new videos automatically
-  - Checks configured channels every 10 minutes
+  - Checks all subscribed channels every 10 minutes within their configured time windows
+  - Each channel has its own schedule (start hour, end hour, check interval)
   - Only processes videos published today
+  - Sends summaries to all users subscribed to each channel
 
 - **video-summary** - Process today's videos from configured channels once
   - One-time execution, then exits
+  - Useful for manual runs or cron jobs
 
 ## Configuration
 

@@ -108,7 +108,8 @@ class TestYouTubeRSSHandler:
         }
         mock_transcript.return_value = "Test transcript"
 
-        result = self.handler.get_video_info_with_transcript("UCtest123")
+        handler = YouTubeRSSHandler()
+        result = handler.get_video_info_with_transcript("UCtest123")
 
         assert result is not None
         assert result["transcript"] == "Test transcript"
@@ -117,7 +118,8 @@ class TestYouTubeRSSHandler:
     @patch.object(YouTubeRSSHandler, "get_todays_video_from_rss")
     def test_get_video_info_with_transcript_no_video(self, mock_rss):
         mock_rss.return_value = None
-        result = self.handler.get_video_info_with_transcript("UCtest123")
+        handler = YouTubeRSSHandler()
+        result = handler.get_video_info_with_transcript("UCtest123")
         assert result is None
 
     @patch.object(YouTubeRSSHandler, "get_todays_video_from_rss")
@@ -130,5 +132,23 @@ class TestYouTubeRSSHandler:
             "url": "https://youtube.com/watch?v=vid123",
         }
         mock_transcript.return_value = None
-        result = self.handler.get_video_info_with_transcript("UCtest123")
+        handler = YouTubeRSSHandler()
+        result = handler.get_video_info_with_transcript("UCtest123")
         assert result is None  # Returns None if no transcript
+
+    @patch.object(YouTubeRSSHandler, "get_todays_video_from_rss")
+    @patch.object(YouTubeRSSHandler, "is_shorts_heuristic")
+    def test_get_video_info_with_transcript_skips_shorts(self, mock_is_shorts, mock_rss):
+        mock_rss.return_value = {
+            "id": "shortVid",
+            "title": "My #shorts video",
+            "channel_title": "Test Channel",
+            "url": "https://youtube.com/watch?v=shortVid",
+        }
+        mock_is_shorts.return_value = True
+
+        handler = YouTubeRSSHandler()
+        result = handler.get_video_info_with_transcript("UCtest123")
+
+        assert result is None
+        mock_is_shorts.assert_called_once()

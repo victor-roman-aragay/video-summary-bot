@@ -37,6 +37,12 @@ def main():
         video_data = yt.get_video_info_with_transcript(channel_handle)
 
         if video_data and 'transcript' in video_data:
+            # Check if it's a Short
+            video_id = video_data.get('id', '')
+            if video_id and yt.is_shorts(video_id):
+                print(f"⏭️  Skipping Short: {video_data['title']}")
+                continue
+
             summary = gemini.summarize_video(
                 video_data['transcript'],
                 video_data['title'],

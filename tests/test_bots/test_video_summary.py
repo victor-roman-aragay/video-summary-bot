@@ -24,6 +24,7 @@ class TestVideoSummaryBot:
         mock_db_cls.return_value = mock_db
 
         mock_yt = MagicMock()
+        mock_yt.is_shorts.return_value = False  # Not a Short
         mock_yt.get_video_info_with_transcript.return_value = {
             "id": "vid123",
             "title": "Test Video",
@@ -43,6 +44,8 @@ class TestVideoSummaryBot:
 
         # Should have called get_video_info_with_transcript for each channel
         assert mock_yt.get_video_info_with_transcript.call_count == 2
+        # Should have checked is_shorts for each
+        assert mock_yt.is_shorts.call_count == 2
         # Should have generated summaries for each channel
         assert mock_gemini.summarize_video.call_count == 2
         # Should have sent messages to users
@@ -163,3 +166,42 @@ class TestVideoSummaryBot:
             main()
 
         mock_yt.get_video_info_with_transcript.assert_not_called()
+
+    @patch("video_summary_bot.bots.video_summary.Database")
+    @patch("video_summary_bot.bots.video_summary.YouTubeHandler")
+    @patch("video_summary_bot.bots.video_summary.GeminiHandler")
+    @patch("video_summary_bot.bots.video_summary.TelegramHandler")
+    def test_main_skips_shorts(
+        self, mock_telegram_cls, mock_gemini_cls, mock_yt_cls, mock_db_cls
+    ):
+        """Channels where latest video is a Short should be skipped"""
+        mock_db = MagicMock()
+        mock_db.get_all_channels.return_value = [
+            {"channel_handle": "@ShortsCh", "channel_name": "Shorts", "active": 1},
+        ]
+        mock_db.get_channel_subscribers.return_value = ["user1"]
+        mock_db_cls.return_value = mock_db
+
+        mock_yt = MagicMock()
+        mock_yt.is_shorts.return_value = True  # It IS a Short
+        mock_yt.get_video_info_with_transcript.return_value = {
+            "id": "shortVid",
+            "title": "My #shorts video",
+            "channel_title": "Shorts Channel",
+            "transcript": "Short transcript",
+        }
+        mock_yt_cls.return_value = mock_yt
+
+        mock_gemini = MagicMock()
+        mock_gemini_cls.return_value = mock_gemini
+
+        mock_telegram = MagicMock()
+        mock_telegram_cls.return_value = mock_telegram
+
+        main()
+
+        # is_shorts should have been called
+        mock_yt.is_shorts.assert_called_once_with("shortVid")
+        # But no summary should be generated
+        mock_gemini.summarize_video.assert_not_called()
+        mock_telegram.send_to_users.assert_not_called()

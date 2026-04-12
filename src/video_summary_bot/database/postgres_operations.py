@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class PostgresDatabase:
-    """PostgreSQL database handler using SQLAlchemy"""
+    """PostgreSQL database handler using SQLAlchemy with pg8000 (pure Python driver)"""
 
     def __init__(self, database_url: str = None):
         """Initialize PostgreSQL connection"""
@@ -20,6 +20,10 @@ class PostgresDatabase:
 
         if not self.database_url:
             raise ValueError("DATABASE_URL environment variable not set")
+
+        # Ensure we use pg8000 driver (pure Python, no native libpq needed)
+        if self.database_url.startswith('postgresql://'):
+            self.database_url = self.database_url.replace('postgresql://', 'postgresql+pg8000://', 1)
 
         # Create engine with connection pooling
         self.engine = create_engine(

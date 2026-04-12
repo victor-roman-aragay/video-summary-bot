@@ -18,7 +18,7 @@ dependencies = [
     "google-generativeai==0.8.5",
     "feedparser==6.0.12",
     "pytz>=2024.0",
-    "psycopg2-binary>=2.9.9",
+    "pg8000>=1.31",
     "sqlalchemy>=2.0.0",
 ]
 

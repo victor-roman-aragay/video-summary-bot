@@ -7,16 +7,76 @@ from typing import Optional, Dict
 from youtube_transcript_api import YouTubeTranscriptApi
 from googleapiclient.discovery import build
 from datetime import datetime
+import re
+
+
+def _parse_iso_duration(duration: str) -> int:
+    """
+    Parse ISO 8601 duration (e.g. 'PT1M30S') to total seconds.
+
+    Args:
+        duration: ISO 8601 duration string from YouTube API
+
+    Returns:
+        Duration in seconds
+    """
+    pattern = r'PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?'
+    match = re.match(pattern, duration)
+    if not match:
+        return 0
+    hours = int(match.group(1) or 0)
+    minutes = int(match.group(2) or 0)
+    seconds = int(match.group(3) or 0)
+    return hours * 3600 + minutes * 60 + seconds
 
 
 class YouTubeHandler:
     """Handles YouTube API operations"""
-    
+
     def __init__(self, api_key: str):
         """Initialize YouTube handler with API key"""
         self.api_key = api_key
         self.youtube = build('youtube', 'v3', developerKey=api_key)
         self.logger = logging.getLogger(__name__)
+
+    def is_shorts(self, video_id: str, max_duration_seconds: int = 60) -> bool:
+        """
+        Check if a video is a YouTube Short by checking its duration.
+        Videos with duration <= max_duration_seconds are considered Shorts.
+
+        Args:
+            video_id: YouTube video ID
+            max_duration_seconds: Threshold for shorts detection (default: 60)
+
+        Returns:
+            True if video is a Short, False otherwise
+        """
+        try:
+            self.logger.info(f"Checking if video {video_id} is a Short")
+            request = self.youtube.videos().list(
+                part='contentDetails',
+                id=video_id
+            )
+            response = request.execute()
+
+            if not response.get('items'):
+                self.logger.warning(f"No video found with ID: {video_id}")
+                return False
+
+            content_details = response['items'][0].get('contentDetails', {})
+            duration_str = content_details.get('duration', '')
+            duration_seconds = _parse_iso_duration(duration_str)
+
+            is_short = duration_seconds <= max_duration_seconds
+            self.logger.info(
+                f"Video {video_id} duration: {duration_str} ({duration_seconds}s). "
+                f"Is Short: {is_short}"
+            )
+            return is_short
+
+        except Exception as e:
+            self.logger.error(f"Error checking if video is a Short: {e}")
+            return False
     
     def get_todays_video(self, channel_id: str) -> Optional[Dict]:
         """

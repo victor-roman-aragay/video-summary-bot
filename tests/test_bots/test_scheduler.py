@@ -78,6 +78,7 @@ class TestCheckAndSendVideo:
             "url": "https://youtube.com/watch?v=vid123",
             "transcript": "Full transcript",
         }
+        mock_yt_rss.is_shorts_heuristic.return_value = False  # Not a Short
         mock_gemini.summarize_video.return_value = "Generated summary"
 
         sched.check_and_send_video("@Ch1", "UCtest123", ["es"])

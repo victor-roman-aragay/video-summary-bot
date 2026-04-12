@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(mkdir *)",
-      "Bash(uv *)"
+      "Bash(uv *)",
+      "Bash(./run.sh *)",
+      "Bash(timeout *)",
+      "Bash(true)"
     ]
   },
   "$version": 3

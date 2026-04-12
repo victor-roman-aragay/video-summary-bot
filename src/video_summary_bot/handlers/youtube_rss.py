@@ -3,6 +3,23 @@ import logging
 from typing import Optional, Dict
 from datetime import datetime, timezone
 from youtube_transcript_api import YouTubeTranscriptApi
+import re
+
+
+def _looks_like_shorts(title: str, description: str = '') -> bool:
+    """
+    Heuristic check if a video is likely a Short based on title/description.
+    Checks for #shorts hashtag (case-insensitive).
+
+    Args:
+        title: Video title
+        description: Video description
+
+    Returns:
+        True if video appears to be a Short
+    """
+    combined = f"{title} {description}".lower()
+    return bool(re.search(r'#shorts?\b', combined))
 
 
 class YouTubeRSSHandler:
@@ -11,6 +28,37 @@ class YouTubeRSSHandler:
     def __init__(self):
         """Initialize RSS handler"""
         self.logger = logging.getLogger(__name__)
+
+    def is_shorts_heuristic(self, video_info: Dict) -> bool:
+        """
+        Check if a video is likely a Short using free heuristics.
+        This is not 100% reliable but works without API quota.
+
+        Checks:
+        1. Title/description contains #shorts
+        2. Transcript is very short (< 150 chars) — Shorts typically have minimal speech
+
+        Args:
+            video_info: Dict with video info (must have 'title', optionally 'transcript')
+
+        Returns:
+            True if video appears to be a Short
+        """
+        # Check title for #shorts
+        if _looks_like_shorts(video_info.get('title', ''), video_info.get('description', '')):
+            self.logger.info(f"Video '{video_info['title']}' detected as Short via #shorts hashtag")
+            return True
+
+        # Check transcript length if available
+        transcript = video_info.get('transcript', '')
+        if transcript and len(transcript) < 150:
+            self.logger.info(
+                f"Video '{video_info['title']}' likely a Short "
+                f"(transcript only {len(transcript)} chars)"
+            )
+            return True
+
+        return False
 
     def get_todays_video_from_rss(self, channel_id: str) -> Optional[Dict]:
         """
@@ -98,18 +146,27 @@ class YouTubeRSSHandler:
 
     def get_video_info_with_transcript(self, channel_id: str, languages: list = ['es']) -> Optional[Dict]:
         """
-        Get today's video from channel with transcript using RSS (minimal quota usage)
+        Get today's video from channel with transcript using RSS (minimal quota usage).
+        Skips YouTube Shorts — returns None if the video is detected as a Short.
 
         Args:
             channel_id: YouTube channel ID (not @handle)
 
         Returns:
-            Dict with video info and transcript or None if failed
+            Dict with video info and transcript, or None if failed / is a Short
         """
         try:
             # Get today's video from RSS
             video_info = self.get_todays_video_from_rss(channel_id)
             if not video_info:
+                return None
+
+            # Check if it's a Short (heuristic, no API quota)
+            if self.is_shorts_heuristic(video_info):
+                self.logger.info(
+                    f"Skipping Short: '{video_info['title']}' — "
+                    f"waiting for a regular video to be uploaded"
+                )
                 return None
 
             # Get transcript

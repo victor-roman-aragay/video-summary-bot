@@ -159,18 +159,13 @@ uv run python -m video_summary_bot video-summary
 
 ### User Management (Database-based) ✨
 
-**Users are now managed in the database, not config files!**
+**Users are managed in the database, not config files.**
 
-#### First Time Setup
+#### Self-Registration
 
-1. Run the migration script to add your initial users:
-   ```bash
-   uv run python scripts/migrate_users_to_db.py
-   ```
+Users can register themselves by sending the `BOT_PASSWORD` to the bot on Telegram. Once the correct password is received, the user is automatically added to the database.
 
-2. This reads from [config/users.py](src/video_summary_bot/config/users.py) and populates the database
-
-#### Adding New Users
+#### Adding Users Manually
 
 ```bash
 # Open database
@@ -185,8 +180,8 @@ INSERT INTO user_channels (user_id, channel_id) VALUES ('123456789', 1);
 
 Or use Python:
 ```python
-from video_summary_bot.database import Database
-db = Database()
+from video_summary_bot.database.factory import get_database
+db = get_database()
 db.add_user(user_id="123456789", username="John Doe")
 db.subscribe_user_to_channel("123456789", channel_id=1)
 ```
@@ -195,15 +190,23 @@ db.subscribe_user_to_channel("123456789", channel_id=1)
 
 ### Channel Configuration
 
-Channels are also managed in the database. Initial setup:
+Channels are managed in the database with per-channel scheduling:
 
 ```bash
 sqlite3 data/video_summary.db
 
 # Add a channel
-INSERT INTO channels (channel_handle, channel_name, youtube_channel_id, language)
-VALUES ('@channelhandle', 'Channel Name', 'UCxxxxx', 'es');
+INSERT INTO channels (channel_handle, channel_name, youtube_channel_id, language,
+                      check_start_hour, check_start_minute, check_end_hour)
+VALUES ('@channelhandle', 'Channel Name', 'UCxxxxx', 'es', 10, 0, 14);
 ```
+
+Channel schedule settings:
+- `check_start_hour` / `check_start_minute` - Start of the daily check window
+- `check_end_hour` - End of the daily check window
+- `check_interval_minutes` - How often to check within the window (default: 5)
+- `language` - Language code for transcript fetching (default: `es`)
+- `active` - Whether the channel is active (1=yes, 0=no)
 
 ## Database
 

@@ -29,5 +29,19 @@ build-backend = "hatchling.build"
 [project.scripts]
 video-summary-bot = "video_summary_bot.__main__:main"
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-mock>=3.14",
+    "pytest-cov>=4.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
 [tool.hatchling.build.targets.wheel]
 packages = ["src/video_summary_bot"]

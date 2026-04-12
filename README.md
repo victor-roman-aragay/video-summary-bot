@@ -5,7 +5,7 @@ Automated YouTube video summarizer bot for Telegram that monitors YouTube channe
 ## Features
 
 - 🎥 Automated YouTube video monitoring via RSS (quota-free)
-- 🤖 AI-powered video summarization using Google Gemini
+- 🤖 AI-powered video summarization using Google Gemini (`gemini-3.1-flash-lite-preview`)
 - 📱 Telegram bot integration for message delivery
 - 👂 Interactive mode for on-demand URL processing from multiple users
 - 📊 Database tracking and caching of processed videos (SQLite or PostgreSQL via Supabase)
@@ -210,13 +210,34 @@ Channel schedule settings:
 
 ## Database
 
-The bot uses SQLite to track:
-- User subscriptions
-- Channel configurations
-- Processed video summaries
-- Check schedules
+The bot supports two database backends, automatically selected based on your `.env` configuration:
 
-Database location: [data/video_summary.db](data/video_summary.db)
+| Backend | Use Case | Env Setting |
+|---------|----------|-------------|
+| **SQLite** | Development / local testing | `USE_SUPABASE=false` |
+| **PostgreSQL (Supabase)** | Production | `USE_SUPABASE=true` + `DATABASE_URL` |
+
+The database factory (`database/factory.py`) automatically picks the right backend. All database operations use the same interface regardless of the backend.
+
+### What's tracked
+
+- User accounts and authorization
+- Channel configurations with per-channel scheduling
+- User-channel subscriptions
+- Processed video summaries (with cache lookups by `video_id`)
+
+### Migration Scripts
+
+```bash
+# Migrate users from legacy config/users.py to database
+uv run python scripts/migrate_users_to_db.py
+
+# Migrate SQLite data to Supabase
+uv run python scripts/migrate_sqlite_to_supabase.py
+
+# Test Supabase connection
+uv run python scripts/test_supabase_connection.py
+```
 
 ## Development
 
@@ -225,25 +246,40 @@ Database location: [data/video_summary.db](data/video_summary.db)
 pytest tests/
 ```
 
+### Install in Development Mode
+```bash
+uv sync
+source .venv/bin/activate
+```
+
 ### Using the Playground Notebook
 ```bash
 jupyter notebook notebooks/playground.ipynb
 ```
 
-### Project Commands
-
-Install in development mode:
-```bash
-pip install -e .
-```
-
 ## API Quota Management
 
-The bot uses RSS feeds for video discovery (quota-free) and only uses the YouTube API for:
-- Initial channel ID lookup (one-time)
-- Video metadata retrieval
+The bot uses **RSS feeds for video discovery** (zero API quota usage). The YouTube Data API is only used for:
+- Initial channel ID lookup (one-time per channel)
+- On-demand video info when users send URLs
 
 This approach minimizes API quota usage significantly.
+
+## Architecture
+
+### Data Flow
+
+1. **RSS Discovery** → `YouTubeRSSHandler` fetches feeds to find new videos (quota-free)
+2. **Transcript Fetching** → `YouTubeTranscriptApi` extracts transcripts
+3. **AI Summarization** → `GeminiHandler` generates summaries using `gemini-3.1-flash-lite-preview`
+4. **Database Storage** → Summary cached with video metadata
+5. **Telegram Delivery** → Summary sent to subscribed users
+
+### Caching Strategy
+
+- Every processed video is stored in the database by `video_id`
+- If a user requests a video that's already been processed, the cached summary is returned immediately
+- No redundant API calls for already-processed videos
 
 ## License
 

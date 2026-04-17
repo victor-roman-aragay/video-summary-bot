@@ -35,8 +35,9 @@ class YouTubeRSSHandler:
         This is not 100% reliable but works without API quota.
 
         Checks:
-        1. Title/description contains #shorts
-        2. Transcript is very short (< 150 chars) — Shorts typically have minimal speech
+        1. URL contains /shorts/ (most reliable signal)
+        2. Title/description contains #shorts
+        3. Transcript is very short (< 150 chars) — Shorts typically have minimal speech
 
         Args:
             video_info: Dict with video info (must have 'title', optionally 'transcript')
@@ -44,6 +45,12 @@ class YouTubeRSSHandler:
         Returns:
             True if video appears to be a Short
         """
+        # Check URL for /shorts/ path (most reliable)
+        url = video_info.get('url', '')
+        if '/shorts/' in url:
+            self.logger.info(f"Video '{video_info['title']}' detected as Short via URL: {url}")
+            return True
+
         # Check title for #shorts
         if _looks_like_shorts(video_info.get('title', ''), video_info.get('description', '')):
             self.logger.info(f"Video '{video_info['title']}' detected as Short via #shorts hashtag")
